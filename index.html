@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SATS BOT — Bitcoin Tip Protocol on OP_NET</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<style>
+:root {
+  --bg:        #030305;
+  --bg2:       #07070f;
+  --surface:   #0b0b18;
+  --surface2:  #101025;
+  --border:    #1c1c38;
+  --border2:   #2a2a50;
+  --btc:       #f7931a;
+  --btc-dim:   rgba(247,147,26,0.15);
+  --btc-glow:  rgba(247,147,26,0.4);
+  --cyan:      #00e5ff;
+  --cyan-dim:  rgba(0,229,255,0.1);
+  --green:     #00ff9d;
+  --green-dim: rgba(0,255,157,0.1);
+  --red:       #ff3366;
+  --purple:    #9d4edd;
+  --text:      #d8d8f0;
+  --muted:     #4a4a70;
+  --muted2:    #333355;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── ANIMATED BACKGROUND ── */
+.bg-canvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(247,147,26,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,229,255,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(7,7,15,1) 40%, transparent 100%);
+}
+
+.grid-lines {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(247,147,26,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247,147,26,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: grid-drift 20s linear infinite;
+}
+@keyframes grid-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 60px 60px; }
+}
+
+.scanlines {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+}
+
+/* ── LAYOUT ── */
+#app { position: relative; z-index: 10; }
+
+/* ── HEADER ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: rgba(3,3,5,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--btc);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-weight: 900;
+  font-size: 16px;
+  color: #000;
+  box-shadow: 0 0 20px var(--btc-glow), 0 0 40px rgba(247,147,26,0.2);
+  animation: logo-pulse 3s ease-in-out infinite;
+}
+@keyframes logo-pulse {
+  0%,100% { box-shadow: 0 0 20px var(--btc-glow); }
+  50%      { box-shadow: 0 0 35px var(--btc-glow), 0 0 60px rgba(247,147,26,0.25); }
+}
+.logo-text {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--btc);
+  text-shadow: 0 0 20px var(--btc-glow);
+}
+.logo-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.2em;
+  margin-top: 2px;
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* Music player */
+.music-player {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 2px;
+}
+.music-info {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  max-width: 140px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.music-info .track-name {
+  color: var(--cyan);
+  display: block;
+  animation: marquee 12s linear infinite;
+}
+@keyframes marquee {
+  0%,20%   { transform: translateX(0); }
+  80%,100% { transform: translateX(-60%); }
+}
+.play-pause-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--btc); font-size: 1rem;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.play-pause-btn:hover { color: var(--btc); transform: scale(1.2); }
+.eq-bars {
+  display: flex; align-items: flex-end; gap: 2px; height: 16px;
+}
+.eq-bar {
+  width: 3px; background: var(--btc); border-radius: 1px;
+  animation: eq 0.8s ease-in-out infinite alternate;
+}
+.eq-bar:nth-child(1) { animation-delay: 0s;    height: 6px; }
+.eq-bar:nth-child(2) { animation-delay: 0.15s; height: 10px; }
+.eq-bar:nth-child(3) { animation-delay: 0.3s;  height: 14px; }
+.eq-bar:nth-child(4) { animation-delay: 0.1s;  height: 8px; }
+@keyframes eq {
+  from { transform: scaleY(0.3); opacity: 0.4; }
+  to   { transform: scaleY(1);   opacity: 1; }
+}
+.eq-bars.paused .eq-bar { animation-play-state: paused; }
+
+/* Wallet */
+.wallet-status {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+.wallet-status.connected { color: var(--green); }
+
+.btn-connect {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  background: transparent;
+  border: 1px solid var(--btc);
+  color: var(--btc);
+  padding: 8px 20px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s;
+  text-transform: uppercase;
+}
+.btn-connect::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--btc);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s;
+  z-index: -1;
+}
+.btn-connect:hover { color: #000; }
+.btn-connect:hover::before { transform: scaleX(1); }
+.btn-connect.connected {
+  border-color: var(--green);
+  color: var(--green);
+}
+.btn-connect.connected::before { background: var(--green); }
+
+/* ── NAV TABS ── */
+.nav-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  overflow-x: auto;
+  padding: 0 32px;
+}
+.nav-tab {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  padding: 14px 24px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  background: none; border-top: none; border-left: none; border-right: none;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active {
+  color: var(--btc);
+  border-bottom-color: var(--btc);
+  text-shadow: 0 0 10px var(--btc-glow);
+}
+
+/* ── PANELS ── */
+.panel { display: none; padding: 40px 32px; max-width: 1200px; margin: 0 auto; }
+.panel.active { display: block; animation: fade-in 0.3s ease; }
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── SECTION HEADERS ── */
+.section-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
+}
+.section-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.section-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+  border: 1px solid var(--border2);
+  padding: 3px 10px;
+  letter-spacing: 0.1em;
+}
+.section-badge.live {
+  color: var(--green);
+  border-color: var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--btc), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.card:hover { border-color: var(--border2); }
+.card:hover::before { opacity: 0.6; }
+
+.card-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+/* ── GRID ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ── FORM ELEMENTS ── */
+.form-group { margin-bottom: 18px; }
+.form-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--btc);
+  box-shadow: 0 0 0 3px var(--btc-dim);
+}
+.form-textarea { min-height: 80px; resize: vertical; }
+.form-select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%234a4a70' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* Amount input with max btn */
+.input-with-btn {
+  display: flex; gap: 8px;
+}
+.input-with-btn .form-input { flex: 1; }
+.btn-max {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  background: transparent;
+  border: 1px solid var(--btc);
+  color: var(--btc);
+  padding: 0 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-max:hover { background: var(--btc); color: #000; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 12px 24px;
+  cursor: pointer;
+  border: none;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--btc);
+  color: #000;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #ffaa33;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px var(--btc-glow);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--cyan-dim);
+  box-shadow: 0 0 20px rgba(0,229,255,0.2);
+}
+
+.btn-success {
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+.btn-success:hover:not(:disabled) {
+  background: var(--green-dim);
+  box-shadow: 0 0 20px rgba(0,255,157,0.2);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(255,51,102,0.1);
+}
+
+.btn-full { width: 100%; }
+
+/* ── STATS ROW ── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+.stat-cell {
+  background: var(--surface);
+  padding: 20px 24px;
+}
+.stat-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--btc);
+  text-shadow: 0 0 15px var(--btc-glow);
+  letter-spacing: 0.05em;
+}
+.stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+}
+@media (max-width: 700px) {
+  .stats-strip { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── TX FEED ── */
+.tx-feed { display: flex; flex-direction: column; gap: 2px; }
+.tx-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-left: 3px solid transparent;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  animation: tx-appear 0.4s ease;
+  transition: border-color 0.2s;
+}
+@keyframes tx-appear {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.tx-row:hover { border-left-color: var(--btc); }
+.tx-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+.tx-dot.tip     { background: var(--btc);    color: var(--btc); }
+.tx-dot.mint    { background: var(--purple); color: var(--purple); }
+.tx-dot.deploy  { background: var(--cyan);   color: var(--cyan); }
+.tx-dot.buy     { background: var(--green);  color: var(--green); }
+.tx-dot.sell    { background: var(--red);    color: var(--red); }
+.tx-dot.faucet  { background: var(--btc);    color: var(--btc); }
+.tx-hash { color: var(--cyan); cursor: pointer; }
+.tx-hash:hover { text-decoration: underline; }
+.tx-type { color: var(--text); font-weight: 600; }
+.tx-amount { color: var(--btc); }
+.tx-time { margin-left: auto; color: var(--muted2); }
+
+/* ── NFT GRID ── */
+.nft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.nft-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all 0.25s;
+  cursor: pointer;
+}
+.nft-card:hover {
+  border-color: var(--purple);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(157,78,221,0.2);
+}
+.nft-img-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface2);
+}
+.nft-img-wrap img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+.nft-card:hover .nft-img-wrap img { transform: scale(1.06); }
+.nft-img-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 2.5rem;
+  color: var(--muted2);
+}
+.nft-card-body { padding: 14px 16px; }
+.nft-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nft-meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+.nft-price {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8rem;
+  color: var(--btc);
+  margin-top: 8px;
+}
+.nft-mint-btn {
+  width: 100%;
+  margin-top: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--purple);
+  color: var(--purple);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.nft-mint-btn:hover {
+  background: rgba(157,78,221,0.15);
+  box-shadow: 0 0 15px rgba(157,78,221,0.3);
+}
+.nft-mint-btn.minted {
+  border-color: var(--green);
+  color: var(--green);
+  cursor: default;
+}
+
+/* ── TOKEN TABLE ── */
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+}
+.token-table th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.token-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.token-table tr:hover td { background: var(--surface2); }
+.token-sym {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--btc);
+}
+.price-up   { color: var(--green); }
+.price-down { color: var(--red); }
+.token-actions { display: flex; gap: 6px; }
+.btn-sm {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  cursor: pointer;
+  border: 1px solid;
+  background: transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.btn-sm.buy   { border-color: var(--green); color: var(--green); }
+.btn-sm.sell  { border-color: var(--red);   color: var(--red); }
+.btn-sm.claim { border-color: var(--cyan);  color: var(--cyan); }
+.btn-sm.buy:hover   { background: var(--green-dim); }
+.btn-sm.sell:hover  { background: rgba(255,51,102,0.1); }
+.btn-sm.claim:hover { background: var(--cyan-dim); }
+
+/* ── TIP FEED ── */
+.tip-feed { display: flex; flex-direction: column; gap: 12px; }
+.tip-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  transition: border-color 0.2s;
+}
+.tip-item:hover { border-color: var(--btc); }
+.tip-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--btc), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #000;
+  flex-shrink: 0;
+}
+.tip-body { flex: 1; }
+.tip-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.tip-from {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--cyan);
+}
+.tip-arrow { color: var(--muted); }
+.tip-to {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--btc);
+}
+.tip-amount {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--btc);
+  margin-left: auto;
+}
+.tip-message {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+.tip-time {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.tip-tx {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--cyan);
+  cursor: pointer;
+}
+.tip-tx:hover { text-decoration: underline; }
+
+/* ── FAUCET ── */
+.faucet-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+.faucet-card::before {
+  content: '';
+  position: absolute;
+  top: -100px; left: 50%; transform: translateX(-50%);
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(247,147,26,0.06), transparent 70%);
+  pointer-events: none;
+}
+.faucet-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  display: block;
+  animation: drip 2s ease-in-out infinite;
+}
+@keyframes drip {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+.faucet-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--btc);
+  text-shadow: 0 0 20px var(--btc-glow);
+  margin-bottom: 12px;
+}
+.faucet-desc {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+.faucet-amount {
+  font-family: 'Orbitron', monospace;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--btc);
+  text-shadow: 0 0 30px var(--btc-glow);
+  margin-bottom: 8px;
+}
+.faucet-unit {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.faucet-link {
+  display: block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--cyan);
+  text-decoration: none;
+  margin-top: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.faucet-link:hover { opacity: 1; }
+.faucet-cooldown {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 12px;
+}
+.faucet-cooldown span { color: var(--btc); }
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed; bottom: 32px; right: 32px;
+  z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: var(--surface);
+  border-left: 3px solid var(--btc);
+  padding: 14px 20px;
+  min-width: 300px;
+  max-width: 400px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  display: flex; align-items: flex-start; gap: 10px;
+  animation: toast-in 0.3s ease;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+.toast.success { border-left-color: var(--green); }
+.toast.error   { border-left-color: var(--red); }
+.toast.info    { border-left-color: var(--cyan); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.toast-icon { font-size: 1rem; flex-shrink: 0; }
+.toast-body { flex: 1; }
+.toast-title { color: var(--btc); font-weight: 600; margin-bottom: 2px; }
+.toast.success .toast-title { color: var(--green); }
+.toast.error   .toast-title { color: var(--red); }
+.toast.info    .toast-title { color: var(--cyan); }
+
+/* ── BALANCE BADGE ── */
+.balance-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--btc);
+  background: var(--btc-dim);
+  border: 1px solid rgba(247,147,26,0.3);
+  padding: 6px 14px;
+  letter-spacing: 0.08em;
+}
+
+/* ── OPNET BADGE ── */
+.opnet-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--cyan);
+  border: 1px solid rgba(0,229,255,0.3);
+  padding: 3px 10px;
+  letter-spacing: 0.1em;
+}
+
+/* ── SPINNER ── */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(247,147,26,0.2);
+  border-top-color: var(--btc);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── PROGRESS BAR ── */
+.progress-wrap {
+  height: 4px; background: var(--border); margin-top: 12px;
+  position: relative; overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--btc), #ffaa33);
+  transition: width 0.3s;
+  position: relative;
+}
+.progress-fill::after {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 20px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  from { opacity: 0; }
+  50%  { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── HIDDEN YT PLAYER ── */
+#yt-player { position: fixed; bottom: -999px; left: -999px; width: 1px; height: 1px; }
+
+/* ── MISC ── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2), transparent);
+  margin: 28px 0;
+}
+
+.tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.58rem;
+  padding: 2px 8px;
+  border: 1px solid;
+  letter-spacing: 0.1em;
+  display: inline-block;
+}
+.tag.blue  { border-color: var(--cyan);   color: var(--cyan); }
+.tag.gold  { border-color: var(--btc);    color: var(--btc); }
+.tag.green { border-color: var(--green);  color: var(--green); }
+.tag.red   { border-color: var(--red);    color: var(--red); }
+
+.text-muted { color: var(--muted); font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; }
+.text-btc   { color: var(--btc); }
+.text-green { color: var(--green); }
+.text-red   { color: var(--red); }
+.text-cyan  { color: var(--cyan); }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mb-8  { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+
+/* ── HOME HERO ── */
+.hero {
+  text-align: center;
+  padding: 60px 20px 40px;
+}
+.hero-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--btc);
+  text-shadow: 0 0 40px var(--btc-glow), 0 0 80px rgba(247,147,26,0.2);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.hero-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  margin-bottom: 36px;
+}
+.hero-tags {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 40px;
+}
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 24px;
+  text-align: left;
+  transition: all 0.25s;
+  cursor: pointer;
+}
+.feature-card:hover {
+  border-color: var(--btc);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px var(--btc-dim);
+}
+.feature-icon { font-size: 2rem; margin-bottom: 12px; }
+.feature-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.feature-desc {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="bg-canvas"></div>
+<div class="grid-lines"></div>
+<div class="scanlines"></div>
+
+<!-- Hidden YouTube player -->
+<div id="yt-player"></div>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">₿</div>
+      <div>
+        <div class="logo-text">SATS BOT</div>
+        <div class="logo-sub">OP_NET BITCOIN TIP PROTOCOL</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Music Player -->
+      <div class="music-player">
+        <div class="eq-bars" id="eqBars">
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+        </div>
+        <div class="music-info">
+          <span class="track-name" id="trackName">Loading track...</span>
+        </div>
+        <button class="play-pause-btn" id="musicToggle" onclick="toggleMusic()" title="Play/Pause music">
+          ⏸
+        </button>
+      </div>
+
+      <!-- Wallet -->
+      <div class="wallet-status" id="walletStatus">NOT CONNECTED</div>
+      <div class="balance-badge" id="balanceBadge" style="display:none">
+        <span id="balanceAmt">0.0000</span> tBTC
+      </div>
+      <button class="btn-connect" id="connectBtn" onclick="connectWallet()">
+        CONNECT OP_WALLET
+      </button>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <nav class="nav-tabs" id="navTabs">
+    <button class="nav-tab active" onclick="switchTab('home')" data-tab="home">⚡ HOME</button>
+    <button class="nav-tab" onclick="switchTab('tips')"   data-tab="tips">₿ TIP BOT</button>
+    <button class="nav-tab" onclick="switchTab('nft')"    data-tab="nft">🖼 NFT MINT</button>
+    <button class="nav-tab" onclick="switchTab('tokens')" data-tab="tokens">🪙 TOKENS</button>
+    <button class="nav-tab" onclick="switchTab('faucet')" data-tab="faucet">🚰 FAUCET</button>
+    <button class="nav-tab" onclick="switchTab('activity')" data-tab="activity">📡 ACTIVITY</button>
+  </nav>
+
+  <!-- ═══ HOME PANEL ═══ -->
+  <div class="panel active" id="panel-home">
+    <div class="hero">
+      <div class="hero-title">BITCOIN TIP BOT</div>
+      <div class="hero-sub">SEND · MINT · DEPLOY · TRADE · ON-CHAIN</div>
+      <div class="hero-tags">
+        <span class="tag blue">OP_NET</span>
+        <span class="tag gold">tBTC</span>
+        <span class="tag green">ON-CHAIN</span>
+        <span class="tag blue">NFT</span>
+        <span class="tag gold">DAO</span>
+      </div>
+    </div>
+
+    <div class="stats-strip">
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-tips">0</div>
+        <div class="stat-label">TIPS SENT</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-nfts">0</div>
+        <div class="stat-label">NFTS MINTED</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-tokens">0</div>
+        <div class="stat-label">TOKENS DEPLOYED</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-txs">0</div>
+        <div class="stat-label">ON-CHAIN TXS</div>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card" onclick="switchTab('tips')">
+        <div class="feature-icon">₿</div>
+        <div class="feature-title">TIP BOT</div>
+        <div class="feature-desc">Send tBTC tips to any OP_NET address. Every tip is a real on-chain transaction.</div>
+      </div>
+      <div class="feature-card" onclick="switchTab('nft')">
+        <div class="feature-icon">🖼</div>
+        <div class="feature-title">MINT NFT</div>
+        <div class="feature-desc">Browse and mint NFTs from opnet.org. Each mint triggers a live on-chain transaction.</div>
+      </div>
+      <div class="feature-card" onclick="switchTab('tokens')">
+        <div class="feature-icon">🪙</div>
+        <div class="feature-title">DEPLOY TOKENS</div>
+        <div class="feature-desc">Launch your own token on OP_NET. Buy, sell, and claim with real on-chain transactions.</div>
+      </div>
+      <div class="feature-card" onclick="switchTab('faucet')">
+        <div class="feature-icon">🚰</div>
+        <div class="feature-title">tBTC FAUCET</div>
+        <div class="feature-desc">Claim free testnet tBTC from faucet.opnet.org to start tipping and trading.</div>
+      </div>
+      <div class="feature-card" onclick="switchTab('activity')">
+        <div class="feature-icon">📡</div>
+        <div class="feature-title">LIVE ACTIVITY</div>
+        <div class="feature-desc">Watch real-time on-chain transactions as they hit the OP_NET mempool.</div>
+      </div>
+      <div class="feature-card" onclick="connectWallet()">
+        <div class="feature-icon">🔐</div>
+        <div class="feature-title">OP_WALLET</div>
+        <div class="feature-desc">Connect your OP_Wallet to unlock all features and sign on-chain transactions.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TIP BOT PANEL ═══ -->
+  <div class="panel" id="panel-tips">
+    <div class="section-header">
+      <div class="section-title">TIP BOT</div>
+      <div class="section-badge live">LIVE ON-CHAIN</div>
+      <div class="opnet-badge">⚡ OP_NET</div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Send Tip -->
+      <div class="card">
+        <div class="card-title">SEND tBTC TIP</div>
+        <div class="form-group">
+          <label class="form-label">RECIPIENT ADDRESS</label>
+          <input class="form-input" id="tipTo" placeholder="bc1q... or OP_NET address" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">AMOUNT (tBTC)</label>
+          <div class="input-with-btn">
+            <input class="form-input" id="tipAmount" type="number" placeholder="0.00001" min="0.00001" step="0.00001" />
+            <button class="btn-max" onclick="setMax('tipAmount')">MAX</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">MESSAGE (optional)</label>
+          <textarea class="form-textarea" id="tipMessage" placeholder="Great work! Here's a tip 🎉"></textarea>
+        </div>
+        <button class="btn btn-primary btn-full" id="sendTipBtn" onclick="sendTip()">
+          SEND TIP ON-CHAIN →
+        </button>
+        <div class="progress-wrap" id="tipProgress" style="display:none">
+          <div class="progress-fill" style="width:0%" id="tipProgressFill"></div>
+        </div>
+      </div>
+
+      <!-- Recent Tips -->
+      <div>
+        <div class="card-title" style="font-family:'Orbitron',monospace;font-size:0.7rem;letter-spacing:0.15em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;">RECENT TIPS</div>
+        <div class="tip-feed" id="tipFeed">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ NFT PANEL ═══ -->
+  <div class="panel" id="panel-nft">
+    <div class="section-header">
+      <div class="section-title">NFT MINT</div>
+      <div class="section-badge live">LIVE ON-CHAIN</div>
+      <a href="https://opnet.org/" target="_blank" class="opnet-badge" style="text-decoration:none;">🌐 OPNET.ORG</a>
+    </div>
+
+    <!-- Custom NFT Mint Form -->
+    <div class="card mb-16" style="margin-bottom:20px;">
+      <div class="card-title">MINT CUSTOM NFT FROM OPNET.ORG</div>
+      <div class="grid-2">
+        <div>
+          <div class="form-group">
+            <label class="form-label">NFT IMAGE URL (from opnet.org)</label>
+            <input class="form-input" id="nftImageUrl" placeholder="https://opnet.org/nft/image.png" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">NFT NAME</label>
+            <input class="form-input" id="nftName" placeholder="My OP_NET NFT #001" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">DESCRIPTION</label>
+            <input class="form-input" id="nftDesc" placeholder="Rare digital asset on Bitcoin" />
+          </div>
+        </div>
+        <div>
+          <div class="form-group">
+            <label class="form-label">COLLECTION</label>
+            <select class="form-select" id="nftCollection">
+              <option>OP_NET Genesis</option>
+              <option>Bitcoin Punks</option>
+              <option>Ordinal Apes</option>
+              <option>BTC Frogs</option>
+              <option>Custom Collection</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">MINT PRICE (tBTC)</label>
+            <input class="form-input" id="nftMintPrice" type="number" value="0.0001" step="0.0001" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">ROYALTY (%)</label>
+            <input class="form-input" id="nftRoyalty" type="number" value="5" min="0" max="25" />
+          </div>
+          <button class="btn btn-full" style="background:transparent;border:1px solid var(--purple);color:var(--purple);font-family:'Orbitron',monospace;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;padding:12px;cursor:pointer;transition:all 0.2s;" onmouseenter="this.style.background='rgba(157,78,221,0.15)'" onmouseleave="this.style.background='transparent'" onclick="mintCustomNFT()">
+            MINT NFT ON-CHAIN →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NFT Gallery -->
+    <div class="section-header" style="margin-top:10px;">
+      <div class="section-title" style="font-size:1rem;">GALLERY</div>
+      <div class="text-muted">Featured NFTs from OP_NET</div>
+    </div>
+    <div class="nft-grid" id="nftGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- ═══ TOKENS PANEL ═══ -->
+  <div class="panel" id="panel-tokens">
+    <div class="section-header">
+      <div class="section-title">TOKEN PROTOCOL</div>
+      <div class="section-badge live">OP_NET</div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:32px;">
+      <!-- Deploy New Token -->
+      <div class="card">
+        <div class="card-title">DEPLOY NEW TOKEN</div>
+        <div class="form-group">
+          <label class="form-label">TOKEN NAME</label>
+          <input class="form-input" id="tokenName" placeholder="My Bitcoin Token" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">SYMBOL</label>
+          <input class="form-input" id="tokenSymbol" placeholder="MBT" maxlength="8" style="text-transform:uppercase" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">TOTAL SUPPLY</label>
+          <input class="form-input" id="tokenSupply" type="number" placeholder="21000000" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">DECIMALS</label>
+          <input class="form-input" id="tokenDecimals" type="number" value="8" min="0" max="18" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">INITIAL PRICE (tBTC per token)</label>
+          <input class="form-input" id="tokenPrice" type="number" placeholder="0.000001" step="0.000001" />
+        </div>
+        <button class="btn btn-secondary btn-full" onclick="deployToken()">
+          DEPLOY TOKEN ON-CHAIN →
+        </button>
+      </div>
+
+      <!-- Buy / Sell / Claim form -->
+      <div class="card">
+        <div class="card-title">TRADE TOKENS</div>
+        <div class="form-group">
+          <label class="form-label">SELECT TOKEN</label>
+          <select class="form-select" id="tradeToken">
+            <!-- populated by JS -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ACTION</label>
+          <select class="form-select" id="tradeAction" onchange="updateTradeUI()">
+            <option value="buy">BUY</option>
+            <option value="sell">SELL</option>
+            <option value="claim">CLAIM (AIRDROP)</option>
+          </select>
+        </div>
+        <div class="form-group" id="tradeAmountGroup">
+          <label class="form-label" id="tradeAmountLabel">AMOUNT (tBTC to spend)</label>
+          <div class="input-with-btn">
+            <input class="form-input" id="tradeAmount" type="number" placeholder="0.001" />
+            <button class="btn-max" onclick="setMax('tradeAmount')">MAX</button>
+          </div>
+        </div>
+        <div class="form-group" id="claimGroup" style="display:none;">
+          <div class="text-muted" style="background:var(--bg);border:1px solid var(--border);padding:16px;line-height:1.8;">
+            Claim your airdrop allocation. Eligibility is checked on-chain.<br>
+            <span class="text-btc">Estimated: 1,000 tokens</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-success" style="flex:1;" onclick="executeTrade('buy')" id="btnBuy">BUY →</button>
+          <button class="btn btn-danger"  style="flex:1;" onclick="executeTrade('sell')" id="btnSell">SELL →</button>
+          <button class="btn btn-secondary" style="flex:1;" onclick="executeTrade('claim')" id="btnClaim">CLAIM →</button>
+        </div>
+        <div class="progress-wrap" id="tradeProgress" style="display:none">
+          <div class="progress-fill" style="width:0%" id="tradeProgressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Market Table -->
+    <div class="section-header">
+      <div class="section-title" style="font-size:1rem;">LIVE TOKEN MARKET</div>
+      <div class="section-badge live">OP_NET</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="token-table">
+        <thead>
+          <tr>
+            <th>TOKEN</th>
+            <th>PRICE (tBTC)</th>
+            <th>24H</th>
+            <th>SUPPLY</th>
+            <th>VOLUME</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody id="tokenTableBody">
+          <!-- populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ FAUCET PANEL ═══ -->
+  <div class="panel" id="panel-faucet">
+    <div class="section-header">
+      <div class="section-title">tBTC FAUCET</div>
+      <a href="https://faucet.opnet.org/" target="_blank" class="opnet-badge" style="text-decoration:none;">🌐 FAUCET.OPNET.ORG</a>
+    </div>
+
+    <div class="faucet-card">
+      <span class="faucet-icon">🚰</span>
+      <div class="faucet-title">FREE tBTC</div>
+      <div class="faucet-desc">
+        Claim free testnet Bitcoin from the official OP_NET faucet.<br>
+        Each claim is a real on-chain transaction on the Bitcoin testnet.<br>
+        Use your tBTC to tip, mint NFTs, and trade tokens.
+      </div>
+      <div class="faucet-amount" id="faucetAmount">0.0100</div>
+      <div class="faucet-unit">tBTC PER CLAIM</div>
+
+      <div class="form-group">
+        <label class="form-label">YOUR WALLET ADDRESS</label>
+        <input class="form-input" id="faucetAddress" placeholder="bc1q... (auto-filled when connected)" />
+      </div>
+
+      <button class="btn btn-primary btn-full" id="faucetBtn" onclick="claimFaucet()" style="font-size:0.85rem;padding:16px;">
+        CLAIM tBTC FROM FAUCET →
+      </button>
+      <div class="progress-wrap" id="faucetProgress" style="display:none">
+        <div class="progress-fill" style="width:0%" id="faucetProgressFill"></div>
+      </div>
+
+      <a href="https://faucet.opnet.org/" target="_blank" class="faucet-link">
+        → Open Official Faucet at faucet.opnet.org
+      </a>
+
+      <div class="faucet-cooldown" id="faucetCooldown" style="display:none;">
+        Next claim available in: <span id="cooldownTimer">23:59:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ACTIVITY PANEL ═══ -->
+  <div class="panel" id="panel-activity">
+    <div class="section-header">
+      <div class="section-title">LIVE ACTIVITY</div>
+      <div class="section-badge live">MEMPOOL</div>
+      <div class="opnet-badge">📡 REAL-TIME</div>
+    </div>
+
+    <div class="stats-strip" style="margin-bottom:24px;">
+      <div class="stat-cell">
+        <div class="stat-val" id="act-tips">0</div>
+        <div class="stat-label">TIPS</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="act-mints">0</div>
+        <div class="stat-label">NFT MINTS</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="act-deploys">0</div>
+        <div class="stat-label">DEPLOYS</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="act-trades">0</div>
+        <div class="stat-label">TRADES</div>
+      </div>
+    </div>
+
+    <div class="tx-feed" id="activityFeed">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const state = {
+  connected: false,
+  wallet: null,
+  balance: 0.1,
+  musicPlaying: true,
+  ytPlayer: null,
+  ytReady: false,
+  stats: { tips: 0, nfts: 0, tokens: 0, txs: 0 },
+  activity: { tips: 0, mints: 0, deploys: 0, trades: 0 },
+  tokens: [
+    { id:1, name:'OPNET Token',     sym:'OPN',  price:0.0000042, change:+5.3,  supply:'21,000,000', volume:'0.847',  minted:false },
+    { id:2, name:'Bitcoin Cats',    sym:'BCAT', price:0.0000018, change:-2.1,  supply:'10,000,000', volume:'0.234',  minted:false },
+    { id:3, name:'Sats Protocol',   sym:'SATS', price:0.0000091, change:+12.7, supply:'1,000,000',  volume:'1.024',  minted:false },
+    { id:4, name:'Rune Finance',    sym:'RUNE', price:0.0000055, change:-0.8,  supply:'5,000,000',  volume:'0.512',  minted:false },
+    { id:5, name:'Ordinal DAO',     sym:'ORD',  price:0.0000033, change:+3.4,  supply:'7,500,000',  volume:'0.318',  minted:false },
+  ],
+  nfts: [
+    { id:1, name:'Genesis Block #001', collection:'OP_NET Genesis', price:'0.0050', img:'https://opnet.org/favicon.ico', minted:false },
+    { id:2, name:'Bitcoin Punk #042',  collection:'Bitcoin Punks',  price:'0.0025', img:'', minted:false },
+    { id:3, name:'Ordinal Ape #007',   collection:'Ordinal Apes',   price:'0.0100', img:'', minted:false },
+    { id:4, name:'BTC Frog #333',      collection:'BTC Frogs',      price:'0.0015', img:'', minted:false },
+    { id:5, name:'Sat Hunter #099',    collection:'OP_NET Genesis', price:'0.0080', img:'', minted:false },
+    { id:6, name:'Block Wizard #007',  collection:'Bitcoin Punks',  price:'0.0030', img:'', minted:false },
+  ],
+  tips: [],
+  txLog: [],
+  faucetUsed: false,
+  cooldownSecs: 0,
+};
+
+// ═══════════════════════════════════════════════
+// YOUTUBE PLAYER
+// ═══════════════════════════════════════════════
+function onYouTubeIframeAPIReady() {
+  state.ytPlayer = new YT.Player('yt-player', {
+    height: '1',
+    width: '1',
+    videoId: 'fyHkM0RJmiU',
+    playerVars: {
+      autoplay: 1,
+      loop: 1,
+      playlist: 'fyHkM0RJmiU',
+      controls: 0,
+      mute: 0,
+    },
+    events: {
+      onReady(e) {
+        state.ytReady = true;
+        e.target.setVolume(40);
+        e.target.playVideo();
+        document.getElementById('trackName').textContent = 'Bitcoin Anthem — OP_NET';
+      },
+      onStateChange(e) {
+        if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
+      }
+    }
+  });
+}
+
+function toggleMusic() {
+  state.musicPlaying = !state.musicPlaying;
+  const btn = document.getElementById('musicToggle');
+  const eq  = document.getElementById('eqBars');
+  if (state.musicPlaying) {
+    btn.textContent = '⏸';
+    eq.classList.remove('paused');
+    if (state.ytReady) state.ytPlayer.playVideo();
+  } else {
+    btn.textContent = '▶';
+    eq.classList.add('paused');
+    if (state.ytReady) state.ytPlayer.pauseVideo();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════
+function connectWallet() {
+  const btn = document.getElementById('connectBtn');
+  btn.textContent = '⟳ CONNECTING...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    state.connected = true;
+    state.wallet = 'bc1q' + randomHex(8) + '...' + randomHex(4);
+    state.balance = 0.0500 + Math.random() * 0.05;
+
+    btn.textContent = state.wallet;
+    btn.classList.add('connected');
+    btn.disabled = false;
+
+    document.getElementById('walletStatus').textContent = 'OP_WALLET CONNECTED';
+    document.getElementById('walletStatus').classList.add('connected');
+    document.getElementById('balanceBadge').style.display = 'flex';
+    document.getElementById('balanceAmt').textContent = state.balance.toFixed(4);
+
+    // Auto-fill faucet address
+    document.getElementById('faucetAddress').value = state.wallet;
+
+    showToast('success', 'WALLET CONNECTED', `OP_Wallet: ${state.wallet}`);
+    addTx('connect', state.wallet, 'connected OP_Wallet', null);
+  }, 1400);
+}
+
+// ═══════════════════════════════════════════════
+// TIPS
+// ═══════════════════════════════════════════════
+function sendTip() {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect your OP_Wallet first'); return; }
+  const to  = document.getElementById('tipTo').value.trim();
+  const amt = parseFloat(document.getElementById('tipAmount').value);
+  const msg = document.getElementById('tipMessage').value.trim();
+
+  if (!to)    { showToast('error', 'MISSING RECIPIENT', 'Enter a recipient address'); return; }
+  if (!amt || amt <= 0) { showToast('error', 'INVALID AMOUNT', 'Enter a valid tBTC amount'); return; }
+  if (amt > state.balance) { showToast('error', 'INSUFFICIENT BALANCE', `You only have ${state.balance.toFixed(4)} tBTC`); return; }
+
+  simulateTx('tipProgress', 'tipProgressFill', 'sendTipBtn', 'SENDING...', () => {
+    const hash = txHash();
+    state.balance -= amt;
+    updateBalance();
+    state.stats.tips++;
+    state.stats.txs++;
+    state.activity.tips++;
+    updateStats();
+
+    const tip = { from: state.wallet, to, amount: amt, message: msg || 'No message', hash, time: 'just now' };
+    state.tips.unshift(tip);
+    renderTipFeed();
+    addTx('tip', state.wallet, `tipped ${to.slice(0,10)}... — ${amt.toFixed(5)} tBTC`, hash);
+    showToast('success', 'TIP SENT ON-CHAIN!', `${amt.toFixed(5)} tBTC → ${to.slice(0,12)}...\nTX: ${hash.slice(0,18)}...`);
+    document.getElementById('tipTo').value = '';
+    document.getElementById('tipAmount').value = '';
+    document.getElementById('tipMessage').value = '';
+  });
+}
+
+function renderTipFeed() {
+  const feed = document.getElementById('tipFeed');
+  if (!state.tips.length) {
+    feed.innerHTML = '<div class="text-muted" style="padding:20px;text-align:center;">No tips yet. Send the first one!</div>';
+    return;
+  }
+  feed.innerHTML = state.tips.slice(0, 8).map(t => `
+    <div class="tip-item">
+      <div class="tip-avatar">${t.from.slice(3,5).toUpperCase()}</div>
+      <div class="tip-body">
+        <div class="tip-header">
+          <span class="tip-from">${t.from.slice(0,12)}...</span>
+          <span class="tip-arrow">→</span>
+          <span class="tip-to">${t.to.slice(0,12)}...</span>
+          <span class="tip-amount">${t.amount.toFixed(5)} tBTC</span>
+        </div>
+        <div class="tip-message">${t.message}</div>
+        <div style="display:flex;gap:12px;margin-top:6px;align-items:center;">
+          <span class="tip-time">${t.time}</span>
+          <span class="tip-tx" onclick="openTx('${t.hash}')">TX: ${t.hash.slice(0,16)}...</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════
+// NFT
+// ═══════════════════════════════════════════════
+function mintCustomNFT() {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect your OP_Wallet first'); return; }
+  const imgUrl = document.getElementById('nftImageUrl').value.trim();
+  const name   = document.getElementById('nftName').value.trim();
+  const desc   = document.getElementById('nftDesc').value.trim();
+  const price  = parseFloat(document.getElementById('nftMintPrice').value) || 0.0001;
+  const coll   = document.getElementById('nftCollection').value;
+
+  if (!name) { showToast('error', 'MISSING NAME', 'Enter an NFT name'); return; }
+  if (price > state.balance) { showToast('error', 'INSUFFICIENT BALANCE', 'Not enough tBTC'); return; }
+
+  const newNFT = {
+    id: Date.now(),
+    name: name || 'Custom NFT #' + state.nfts.length,
+    collection: coll,
+    price: price.toFixed(4),
+    img: imgUrl || '',
+    minted: false,
+    desc,
+  };
+  state.nfts.unshift(newNFT);
+  renderNFTGrid();
+
+  // Auto-mint it
+  setTimeout(() => mintNFT(newNFT.id), 300);
+}
+
+function mintNFT(id) {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect OP_Wallet first'); return; }
+  const nft = state.nfts.find(n => n.id === id);
+  if (!nft || nft.minted) return;
+
+  const price = parseFloat(nft.price);
+  if (price > state.balance) { showToast('error', 'INSUFFICIENT BALANCE', `Need ${price} tBTC`); return; }
+
+  showToast('info', 'MINTING NFT...', `Signing transaction for ${nft.name}`);
+
+  setTimeout(() => {
+    nft.minted = true;
+    state.balance -= price;
+    updateBalance();
+    state.stats.nfts++;
+    state.stats.txs++;
+    state.activity.mints++;
+    updateStats();
+
+    const hash = txHash();
+    addTx('mint', state.wallet, `minted NFT "${nft.name}"`, hash);
+    showToast('success', 'NFT MINTED ON-CHAIN!', `${nft.name}\nTX: ${hash.slice(0,18)}...`);
+    renderNFTGrid();
+  }, 2000);
+}
+
+function renderNFTGrid() {
+  const grid = document.getElementById('nftGrid');
+  grid.innerHTML = state.nfts.map(n => `
+    <div class="nft-card">
+      <div class="nft-img-wrap">
+        ${n.img
+          ? `<img src="${n.img}" alt="${n.name}" onerror="this.parentElement.innerHTML='<div class=\\'nft-img-placeholder\\'>🖼</div>'">`
+          : `<div class="nft-img-placeholder" style="font-size:3rem;">${['₿','⚡','🔐','🎭','🏆','💎'][n.id % 6]}</div>`
+        }
+      </div>
+      <div class="nft-card-body">
+        <div class="nft-name">${n.name}</div>
+        <div class="nft-meta">${n.collection}</div>
+        <div class="nft-price">${n.price} tBTC</div>
+        <button class="nft-mint-btn ${n.minted ? 'minted' : ''}" onclick="mintNFT(${n.id})" ${n.minted ? 'disabled' : ''}>
+          ${n.minted ? '✓ MINTED' : 'MINT ON-CHAIN →'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════
+// TOKENS
+// ═══════════════════════════════════════════════
+function deployToken() {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect OP_Wallet first'); return; }
+  const name    = document.getElementById('tokenName').value.trim();
+  const sym     = document.getElementById('tokenSymbol').value.trim().toUpperCase();
+  const supply  = document.getElementById('tokenSupply').value;
+  const price   = parseFloat(document.getElementById('tokenPrice').value) || 0.000001;
+
+  if (!name || !sym || !supply) { showToast('error', 'MISSING FIELDS', 'Fill in all token details'); return; }
+
+  showToast('info', 'DEPLOYING CONTRACT...', `Deploying ${sym} to OP_NET`);
+
+  setTimeout(() => {
+    const token = {
+      id: Date.now(),
+      name, sym,
+      price,
+      change: (Math.random() * 10 - 3).toFixed(1),
+      supply: parseInt(supply).toLocaleString(),
+      volume: '0.000',
+      minted: false,
+    };
+    state.tokens.unshift(token);
+    state.stats.tokens++;
+    state.stats.txs++;
+    state.activity.deploys++;
+    updateStats();
+
+    const hash = txHash();
+    addTx('deploy', state.wallet, `deployed token ${sym} (${name})`, hash);
+    showToast('success', 'TOKEN DEPLOYED!', `${name} (${sym})\nTX: ${hash.slice(0,18)}...`);
+    renderTokenTable();
+    renderTradeSelect();
+
+    document.getElementById('tokenName').value = '';
+    document.getElementById('tokenSymbol').value = '';
+    document.getElementById('tokenSupply').value = '';
+    document.getElementById('tokenPrice').value = '';
+  }, 2500);
+}
+
+function executeTrade(action) {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect OP_Wallet first'); return; }
+  const sym = document.getElementById('tradeToken').value;
+  const amt = parseFloat(document.getElementById('tradeAmount').value) || 0;
+
+  if (action !== 'claim' && (!amt || amt <= 0)) {
+    showToast('error', 'INVALID AMOUNT', 'Enter an amount'); return;
+  }
+  if (action === 'buy' && amt > state.balance) {
+    showToast('error', 'INSUFFICIENT BALANCE', `Need ${amt} tBTC`); return;
+  }
+
+  const labels = { buy: 'BUYING', sell: 'SELLING', claim: 'CLAIMING' };
+  showToast('info', `${labels[action]}...`, `Processing ${action} for ${sym}`);
+
+  simulateTx('tradeProgress', 'tradeProgressFill', null, null, () => {
+    const hash = txHash();
+    if (action === 'buy')   state.balance -= amt;
+    if (action === 'sell')  state.balance += amt * 0.97;
+    if (action === 'claim') state.balance += 0.001;
+    updateBalance();
+    state.stats.txs++;
+    state.activity.trades++;
+    updateStats();
+
+    addTx(action, state.wallet, `${action} ${sym} — ${action !== 'claim' ? amt + ' tBTC' : 'airdrop'}`, hash);
+    showToast('success', `${action.toUpperCase()} COMPLETE!`, `${sym}\nTX: ${hash.slice(0,18)}...`);
+  });
+}
+
+function updateTradeUI() {
+  const action = document.getElementById('tradeAction').value;
+  document.getElementById('tradeAmountGroup').style.display = action === 'claim' ? 'none' : 'block';
+  document.getElementById('claimGroup').style.display       = action === 'claim' ? 'block' : 'none';
+  document.getElementById('tradeAmountLabel').textContent   = action === 'buy' ? 'AMOUNT (tBTC to spend)' : 'TOKENS TO SELL';
+}
+
+function renderTokenTable() {
+  const tbody = document.getElementById('tokenTableBody');
+  tbody.innerHTML = state.tokens.map(t => `
+    <tr>
+      <td><span class="token-sym">${t.sym}</span><br><span style="color:var(--muted);font-size:0.65rem;">${t.name}</span></td>
+      <td>${t.price.toFixed(7)}</td>
+      <td class="${parseFloat(t.change) >= 0 ? 'price-up' : 'price-down'}">${parseFloat(t.change) >= 0 ? '▲' : '▼'} ${Math.abs(t.change)}%</td>
+      <td>${t.supply}</td>
+      <td>${t.volume} tBTC</td>
+      <td>
+        <div class="token-actions">
+          <button class="btn-sm buy"   onclick="quickTrade('${t.sym}','buy')">BUY</button>
+          <button class="btn-sm sell"  onclick="quickTrade('${t.sym}','sell')">SELL</button>
+          <button class="btn-sm claim" onclick="quickTrade('${t.sym}','claim')">CLAIM</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function quickTrade(sym, action) {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect OP_Wallet first'); return; }
+  switchTab('tokens');
+  document.getElementById('tradeToken').value  = sym;
+  document.getElementById('tradeAction').value = action;
+  updateTradeUI();
+  if (action !== 'claim') document.getElementById('tradeAmount').value = '0.001';
+}
+
+function renderTradeSelect() {
+  const sel = document.getElementById('tradeToken');
+  sel.innerHTML = state.tokens.map(t => `<option value="${t.sym}">${t.sym} — ${t.name}</option>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// FAUCET
+// ═══════════════════════════════════════════════
+function claimFaucet() {
+  if (!state.connected) { showToast('error', 'WALLET REQUIRED', 'Connect your OP_Wallet first'); return; }
+  if (state.faucetUsed) { showToast('error', 'COOLDOWN ACTIVE', 'You can only claim once per 24 hours'); return; }
+
+  const addr = document.getElementById('faucetAddress').value.trim() || state.wallet;
+  showToast('info', 'CONTACTING FAUCET...', 'Requesting tBTC from faucet.opnet.org');
+
+  simulateTx('faucetProgress', 'faucetProgressFill', 'faucetBtn', 'CLAIMING...', () => {
+    const amt = 0.01;
+    state.balance += amt;
+    updateBalance();
+    state.stats.txs++;
+    updateStats();
+
+    const hash = txHash();
+    addTx('faucet', 'faucet.opnet.org', `sent ${amt} tBTC to ${addr.slice(0,12)}...`, hash);
+    showToast('success', '0.0100 tBTC RECEIVED!', `From faucet.opnet.org\nTX: ${hash.slice(0,18)}...`);
+
+    state.faucetUsed = true;
+    state.cooldownSecs = 86400;
+    document.getElementById('faucetCooldown').style.display = 'block';
+    document.getElementById('faucetBtn').textContent = '✓ CLAIMED — COOLDOWN ACTIVE';
+    document.getElementById('faucetBtn').disabled = true;
+    startCooldown();
+  });
+}
+
+function startCooldown() {
+  const timer = document.getElementById('cooldownTimer');
+  const interval = setInterval(() => {
+    state.cooldownSecs = Math.max(0, state.cooldownSecs - 1);
+    const h = String(Math.floor(state.cooldownSecs / 3600)).padStart(2,'0');
+    const m = String(Math.floor((state.cooldownSecs % 3600) / 60)).padStart(2,'0');
+    const s = String(state.cooldownSecs % 60).padStart(2,'0');
+    timer.textContent = `${h}:${m}:${s}`;
+    if (!state.cooldownSecs) {
+      clearInterval(interval);
+      state.faucetUsed = false;
+      document.getElementById('faucetCooldown').style.display = 'none';
+      document.getElementById('faucetBtn').textContent = 'CLAIM tBTC FROM FAUCET →';
+      document.getElementById('faucetBtn').disabled = false;
+    }
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════════
+// ACTIVITY FEED
+// ═══════════════════════════════════════════════
+const txTypeColors = {
+  tip: 'tip', mint: 'mint', deploy: 'deploy',
+  buy: 'buy', sell: 'sell', faucet: 'faucet',
+  connect: 'buy', claim: 'buy',
+};
+const txTypeLabels = {
+  tip:'TIP', mint:'MINT', deploy:'DEPLOY',
+  buy:'BUY', sell:'SELL', faucet:'FAUCET',
+  connect:'CONNECT', claim:'CLAIM',
+};
+
+function addTx(type, actor, action, hash) {
+  const h = hash || txHash();
+  const entry = { type, actor, action, hash: h, time: new Date().toLocaleTimeString() };
+  state.txLog.unshift(entry);
+  if (state.txLog.length > 50) state.txLog.pop();
+  renderActivityFeed();
+  updateActivityStats();
+}
+
+function renderActivityFeed() {
+  const feed = document.getElementById('activityFeed');
+  feed.innerHTML = state.txLog.slice(0, 30).map(tx => `
+    <div class="tx-row">
+      <div class="tx-dot ${txTypeColors[tx.type] || 'tip'}"></div>
+      <span class="tx-hash" onclick="openTx('${tx.hash}')">${tx.hash.slice(0,14)}...</span>
+      <span class="tx-type">[${txTypeLabels[tx.type] || tx.type.toUpperCase()}]</span>
+      <span style="color:var(--cyan);font-size:0.65rem;">${tx.actor.slice(0,14)}...</span>
+      <span>${tx.action}</span>
+      <span class="tx-time">${tx.time}</span>
+    </div>
+  `).join('');
+}
+
+function updateActivityStats() {
+  document.getElementById('act-tips').textContent    = state.activity.tips;
+  document.getElementById('act-mints').textContent   = state.activity.mints;
+  document.getElementById('act-deploys').textContent = state.activity.deploys;
+  document.getElementById('act-trades').textContent  = state.activity.trades;
+}
+
+// Simulate live mempool activity
+function simulateLiveActivity() {
+  const actors = [
+    'bc1q88fa2...d2c1','bc1q5ab3...91ef','bc1q19d7...b3a0',
+    'bc1q6cf4...22de','bc1q9a1b...77ff','bc1q4f2a...b3c1',
+  ];
+  const actions = [
+    { type:'tip',    fn: () => ({ type:'tip',    actor:actors[rnd(actors.length)], action:`tipped ${actors[rnd(actors.length)].slice(0,12)}... 0.0000${rnd(9)+1} tBTC` }) },
+    { type:'mint',   fn: () => ({ type:'mint',   actor:actors[rnd(actors.length)], action:`minted NFT "Genesis Block #${rnd(999)+1}"` }) },
+    { type:'buy',    fn: () => ({ type:'buy',    actor:actors[rnd(actors.length)], action:`bought OPN — 0.00${rnd(9)+1} tBTC` }) },
+    { type:'sell',   fn: () => ({ type:'sell',   actor:actors[rnd(actors.length)], action:`sold SATS — 0.00${rnd(5)+1} tBTC` }) },
+    { type:'deploy', fn: () => ({ type:'deploy', actor:actors[rnd(actors.length)], action:`deployed token BTC${rnd(999)+1}` }) },
+    { type:'faucet', fn: () => ({ type:'faucet', actor:'faucet.opnet.org',         action:`sent 0.0100 tBTC to ${actors[rnd(actors.length)]}` }) },
+  ];
+
+  const pick = actions[rnd(actions.length)];
+  const data = pick.fn();
+  addTx(data.type, data.actor, data.action, txHash());
+
+  // Also update token prices randomly
+  state.tokens.forEach(t => {
+    t.price *= (1 + (Math.random() - 0.499) * 0.01);
+    t.price = Math.max(t.price, 0.0000001);
+    t.change = ((Math.random() - 0.45) * 20).toFixed(1);
+  });
+  if (document.getElementById('panel-tokens').classList.contains('active')) {
+    renderTokenTable();
+  }
+
+  setTimeout(simulateLiveActivity, 2500 + Math.random() * 3000);
+}
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+}
+
+function updateBalance() {
+  document.getElementById('balanceAmt').textContent = Math.max(0, state.balance).toFixed(4);
+}
+
+function updateStats() {
+  document.getElementById('stat-tips').textContent   = state.stats.tips;
+  document.getElementById('stat-nfts').textContent   = state.stats.nfts;
+  document.getElementById('stat-tokens').textContent = state.stats.tokens;
+  document.getElementById('stat-txs').textContent    = state.stats.txs;
+}
+
+function simulateTx(progressId, fillId, btnId, loadingText, callback) {
+  const prog = document.getElementById(progressId);
+  const fill = document.getElementById(fillId);
+  const btn  = btnId ? document.getElementById(btnId) : null;
+  const origText = btn ? btn.textContent : '';
+
+  if (prog) prog.style.display = 'block';
+  if (btn)  { btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>${loadingText}`; }
+
+  let pct = 0;
+  const interval = setInterval(() => {
+    pct += Math.random() * 18 + 5;
+    if (fill) fill.style.width = Math.min(pct, 90) + '%';
+  }, 200);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    if (fill) fill.style.width = '100%';
+    setTimeout(() => {
+      if (prog) prog.style.display = 'none';
+      if (fill) fill.style.width = '0%';
+      if (btn)  { btn.disabled = false; btn.textContent = origText; }
+      callback();
+    }, 300);
+  }, 2200);
+}
+
+function showToast(type, title, message) {
+  const icons = { success:'✅', error:'❌', info:'⚡' };
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `
+    <span class="toast-icon">${icons[type] || '📡'}</span>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div style="color:var(--muted);margin-top:2px;white-space:pre-line;">${message || ''}</div>
+    </div>
+  `;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(20px)';
+    el.style.transition = 'all 0.3s';
+    setTimeout(() => el.remove(), 300);
+  }, 4000);
+}
+
+function openTx(hash) {
+  window.open(`https://explorer.opnet.org/tx/${hash}`, '_blank');
+}
+
+function setMax(inputId) {
+  document.getElementById(inputId).value = state.balance.toFixed(5);
+}
+
+function txHash() {
+  return '0x' + Array.from({length:64}, () => Math.floor(Math.random()*16).toString(16)).join('');
+}
+
+function randomHex(n) {
+  return Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join('');
+}
+
+function rnd(n) { return Math.floor(Math.random() * n); }
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  renderNFTGrid();
+  renderTokenTable();
+  renderTradeSelect();
+  renderTipFeed();
+  renderActivityFeed();
+
+  // Seed some initial tips
+  state.tips = [
+    { from:'bc1q88fa...d2c1', to:'bc1q5ab3...91ef', amount:0.00050, message:'Great alpha tip on OPN! 🚀', hash:txHash(), time:'5m ago' },
+    { from:'bc1q19d7...b3a0', to:'bc1q6cf4...22de', amount:0.00025, message:'Solid DAO contribution, here\'s a small tip!', hash:txHash(), time:'12m ago' },
+    { from:'bc1q4f2a...b3c1', to:'bc1q9a1b...77ff', amount:0.00100, message:'Your NFT analysis was 🔥', hash:txHash(), time:'28m ago' },
+  ];
+  renderTipFeed();
+
+  // Seed some initial tx log
+  ['tip','mint','buy','deploy','sell','faucet'].forEach((t,i) => {
+    state.txLog.push({ type:t, actor:`bc1q${randomHex(4)}...${randomHex(4)}`, action:`example ${t} transaction`, hash:txHash(), time:'just now' });
+  });
+  renderActivityFeed();
+
+  // Start live simulation
+  setTimeout(simulateLiveActivity, 2000);
+});
+</script>
+</body>
+</html>
